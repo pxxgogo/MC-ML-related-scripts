@@ -13,6 +13,8 @@ MIN_FREQUENCY = 2
 SHOW_PERCENT = 100
 SHORT_SENTENCE_PATTERN = re.compile(r"([,，；;])")
 
+log_file = open("log.txt", 'w')
+
 def sentence_split(file_path):
     file_handle = open(file_path, 'r')
     line = file_handle.readline()
@@ -70,6 +72,23 @@ def sentence_split(file_path):
     print("--------Finish splitting sentence-------")
     return new_lines
 
+def transform_text(content, word_map):
+    char_list = content.split(" ")
+    for i in range(len(char_list)):
+        if char_list[i] == "":
+            continue
+        if not char_list[i] in word_map:
+            if char_list[i].find("{{E}}") > -1:
+                char_list[i] = '{{E}}'
+            elif char_list[i].find("{{#}}") > -1:
+                char_list[i] = '{{#}}'
+            else:
+                log_file.write("ERROR WORD: %s \n" % char_list[i])
+                char_list[i] = '{{R}}'
+        char_list[i] = str(word_map[char_list[i]])
+    ret = " ".join(char_list) + "\n"
+    return ret
+
 def lines_sample(lines, word_map, percent, output_dir):
     train_No_list = []
     valid_No_list = []
@@ -99,13 +118,8 @@ def lines_sample(lines, word_map, percent, output_dir):
         if line_num % (len(train_No_list) // SHOW_PERCENT) == 0:
             print(line_num / len(train_No_list), end='\r')
         content = lines[line_No].strip('\n')
-        char_list = content.split(" ")
-        for i in range(len(char_list)):
-            if char_list[i] == "":
-                continue
-            char_list[i] = str(word_map.get(char_list[i], word_map['{{vocab_size}}']))
-        train_line = " ".join(char_list) + "\n"
-        ftrain.write(train_line)
+        ret = transform_text(content, word_map)
+        ftrain.write(ret)
         line_num += 1
 
     print()
@@ -115,13 +129,8 @@ def lines_sample(lines, word_map, percent, output_dir):
         if line_num % (len(valid_No_list) // SHOW_PERCENT) == 0:
             print(line_num / len(valid_No_list), end='\r')
         content = lines[line_No].strip('\n')
-        char_list = content.split(" ")
-        # for i in range(len(char_list)):
-        #     if char_list[i] == "":
-        #         continue
-        #     char_list[i] = str(word_map.get(char_list[i], word_map['{{vocab_size}}']))
-        valid_line = " ".join(char_list) + "\n"
-        fvalid.write(valid_line)
+        ret = transform_text(content, word_map)
+        fvalid.write(ret)
         line_num += 1
 
     print()
@@ -131,14 +140,21 @@ def lines_sample(lines, word_map, percent, output_dir):
         if line_num % (len(test_No_list) // SHOW_PERCENT) == 0:
             print(line_num / len(test_No_list), end='\r')
         content = lines[line_No].strip('\n')
-        char_list = content.split(" ")
-        for i in range(len(char_list)):
-            if char_list[i] == "":
-                continue
-            char_list[i] = str(word_map.get(char_list[i], word_map['{{vocab_size}}']))
-        test_line = " ".join(char_list) + "\n"
-        ftest.write(test_line)
+        ret = transform_text(content, word_map)
+        ftest.write(ret)
         line_num += 1
+
+def print_tmp_text(lines, output_dir):
+    line_num = 0
+    file_handle = open(os.path.join(output_dir, "short_sentence_full_corpus.txt"), 'w')
+    for line in lines:
+        if line_num > len(lines):
+            break
+        if line_num % (len(lines) // SHOW_PERCENT) == 0:
+            print(line_num / len(lines), end='\r')
+        file_handle.write(line + "\n")
+        line_num += 1
+    file_handle.close()
 
 
 def main():
@@ -158,9 +174,12 @@ def main():
     if output_dir not in os.listdir("."):
         os.mkdir(output_dir)
     lines = sentence_split(input_file)
+    print_tmp_text(lines, output_dir)
     lines_sample(lines, word_map, percent, output_dir)
-
+    print()
     print("Completed!")
 
 
+
 main()
+log_file.close()
