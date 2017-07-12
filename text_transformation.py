@@ -70,153 +70,96 @@ def sentence_split(file_path):
     print("--------Finish splitting sentence-------")
     return new_lines
 
-
-def file_count(lines):
-    word_map_count = {}
+def lines_sample(lines, word_map, percent, output_dir):
+    train_No_list = []
+    valid_No_list = []
+    test_No_list = []
     line_num = 0
+    ftrain = open(os.path.join(output_dir, 'ptb.train.txt'), 'w')
+    fvalid = open(os.path.join(output_dir, 'ptb.valid.txt'), 'w')
+    ftest = open(os.path.join(output_dir, 'ptb.test.txt'), 'w')
+    line_max_num = len(lines) * percent
     for line in lines:
-        if line_num % (len(lines) // SHOW_PERCENT) == 0:
-            print(line_num / len(lines), end='\r')
-        content = line.strip('\n')
-        char_list = content.split(" ")
-        for word in char_list:
-            if word == "":
-                continue
-            try:
-                word_map_count[word] += 1
-            except:
-                word_map_count[word] = 1
-        line_num += 1
-    print("--------Finish file mapping-------")
-    return word_map_count
-
-
-def file_filter(lines, word_map_count, threshold, output_dir):
-    line_num = 0
-    for line in lines:
-        if line_num % (len(lines) // SHOW_PERCENT) == 0:
-            print(line_num / len(lines), end='\r')
-        content = line.strip('\n')
-        char_list = content.split(" ")
-        i = 0
-        for word in char_list:
-            if word == "":
-                i += 1
-                continue
-            try:
-                if word_map_count[word] < threshold:
-                    char_list[i] = "{{R}}"
-                    word_map_count.__delitem__(word)
-            except:
-                char_list[i] = "{{R}}"
-            i += 1
-        # if line_num % 10000 == 0:
-        #   print(".", end=" ")
-        lines[line_num] = " ".join(char_list)
-        line_num += 1
-    word_map_int = {}
-    No = 1
-    for word, num in word_map_count.items():
-        word_map_int[word] = No
-        No += 1
-
-    word_map_int["{{vocab_size}}"] = len(word_map_count)
-    if not output_dir in os.listdir("./"):
-        os.mkdir(output_dir)
-    with open(os.path.join(output_dir, 'new_words_map.json'), 'w') as f_word_map:
-        f_word_map.write(json.dumps(word_map_int))
-    print("--------Finish file filtering-------")
-    return word_map_int
-
-
-def lines_sample(lines, word_map_int, percent):
-    sample_lines = list(filter(lambda x: nr.random() * 100.0 <= percent, lines))
-    train = []
-    valid = []
-    test = []
-    lines = []
-    line_num = 0
-    for line in sample_lines:
-        if line_num % (len(sample_lines) // SHOW_PERCENT) == 0:
-            print(line_num / len(sample_lines), end='\r')
+        if line_num > line_max_num:
+            break
+        if line_num % (line_max_num // SHOW_PERCENT) == 0:
+            print(line_num / line_max_num, end='\r')
         tmp = nr.random()
         if tmp <= 0.75:
-            train.append(line)
+            train_No_list.append(line_num)
         elif tmp <= 0.85:
-            valid.append(line)
+            valid_No_list.append(line_num)
         else:
-            test.append(line)
+            test_No_list.append(line_num)
         line_num += 1
-    sample_lines = []
     print()
+    print("WRITE TRAIN DATA: ")
     line_num = 0
-    for line in train:
-        if line_num % (len(train) // SHOW_PERCENT) == 0:
-            print(line_num / len(train), end='\r')
-        content = line.strip('\n')
+    for line_No in train_No_list:
+        if line_num % (len(train_No_list) // SHOW_PERCENT) == 0:
+            print(line_num / len(train_No_list), end='\r')
+        content = lines[line_No].strip('\n')
         char_list = content.split(" ")
         for i in range(len(char_list)):
-            if (char_list[i] == ""):
+            if char_list[i] == "":
                 continue
-            char_list[i] = str(word_map_int[char_list[i]])
-        train[line_num] = " ".join(char_list) + "\n"
+            char_list[i] = str(word_map.get(char_list[i], word_map['{{vocab_size}}']))
+        train_line = " ".join(char_list) + "\n"
+        ftrain.write(train_line)
         line_num += 1
 
-    line_num = 0
     print()
-    for line in test:
-        if line_num % (len(test) // SHOW_PERCENT) == 0:
-            print(line_num / len(test), end='\r')
-        content = line.strip('\n')
+    print("WRITE VALID DATA: ")
+    line_num = 0
+    for line_No in valid_No_list:
+        if line_num % (len(valid_No_list) // SHOW_PERCENT) == 0:
+            print(line_num / len(valid_No_list), end='\r')
+        content = lines[line_No].strip('\n')
         char_list = content.split(" ")
-        for i in range(len(char_list)):
-            if (char_list[i] == ""):
-                continue
-            char_list[i] = str(word_map_int[char_list[i]])
-        test[line_num] = " ".join(char_list) + "\n"
+        # for i in range(len(char_list)):
+        #     if char_list[i] == "":
+        #         continue
+        #     char_list[i] = str(word_map.get(char_list[i], word_map['{{vocab_size}}']))
+        valid_line = " ".join(char_list) + "\n"
+        fvalid.write(valid_line)
         line_num += 1
 
-    line_num = 0
     print()
-    for line in valid:
-        if line_num % (len(valid) // SHOW_PERCENT) == 0:
-            print(line_num / len(valid), end='\r')
-        content = line.strip('\n')
+    print("WRITE TEST DATA: ")
+    line_num = 0
+    for line_No in test_No_list:
+        if line_num % (len(test_No_list) // SHOW_PERCENT) == 0:
+            print(line_num / len(test_No_list), end='\r')
+        content = lines[line_No].strip('\n')
         char_list = content.split(" ")
         for i in range(len(char_list)):
-            if (char_list[i] == ""):
+            if char_list[i] == "":
                 continue
-            char_list[i] = str(word_map_int[char_list[i]])
-        valid[line_num] = " ".join(char_list) + "\n"
+            char_list[i] = str(word_map.get(char_list[i], word_map['{{vocab_size}}']))
+        test_line = " ".join(char_list) + "\n"
+        ftest.write(test_line)
         line_num += 1
-    return train, valid, test
 
 
 def main():
     now = datetime.datetime.now()
     parser = argparse.ArgumentParser()
     parser.add_argument('input', type=str)
+    parser.add_argument('--word_map_dir', type=str, default='./word_map_new.json')
     parser.add_argument('--output_dir', type=str, default='./filtered_%s/' % str(now))
-    parser.add_argument('--threshold', type=int, default=100)
-    parser.add_argument('--percent', type=int, default=10)
+    parser.add_argument('--percent', type=float, default=1)
     args = parser.parse_args()
 
     input_file = args.input
-    threshold = args.threshold
+    word_map = json.loads(open(args.word_map_dir).read())
     output_dir = args.output_dir
     percent = args.percent
 
+    if output_dir not in os.listdir("."):
+        os.mkdir(output_dir)
     lines = sentence_split(input_file)
-    word_map_count = file_count(lines)
-    word_map_int = file_filter(lines, word_map_count, threshold, output_dir)
-    train, valid, test = lines_sample(lines, word_map_int, percent)
+    lines_sample(lines, word_map, percent, output_dir)
 
-    with open(os.path.join(args.output_dir, 'ptb.train.txt'), 'w') as ftrain:
-        ftrain.writelines(train)
-    with open(os.path.join(args.output_dir, 'ptb.valid.txt'), 'w') as fvalid:
-        fvalid.writelines(valid)
-    with open(os.path.join(args.output_dir, 'ptb.test.txt'), 'w') as ftest:
-        ftest.writelines(test)
     print("Completed!")
 
 
